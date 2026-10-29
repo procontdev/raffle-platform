@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: raffle_platform
+      POSTGRES_USER: raffle_platform_migrator
+      POSTGRES_PASSWORD: local_only_change_me
+    ports:
+      - "5433:5432"
+    volumes:
+      - raffle_pgdata:/var/lib/postgresql/data
+
+volumes:
+  raffle_pgdata:

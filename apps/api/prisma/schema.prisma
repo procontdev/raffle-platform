@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BrandStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum UserRole {
+  ADMIN
+  OPERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum RaffleStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  READY
+  DRAWING
+  COMPLETED
+  CANCELLED
+}
+
+model Organization {
+  id        String             @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String             @unique
+  status    OrganizationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  brands       Brand[]
+  users        User[]
+  raffles      Raffle[]
+  participants Participant[]
+
+  @@map("organizations")
+}
+
+model Brand {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  name           String
+  slug           String
+  logoUrl        String?     @map("logo_url")
+  themeConfig    Json?       @map("theme_config")
+  status         BrandStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  raffles      Raffle[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("brands")
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  email          String
+  passwordHash   String     @map("password_hash")
+  role           UserRole   @default(ADMIN)
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdRaffles Raffle[]   @relation("RaffleCreatedBy")
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Raffle {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  brandId          String?      @map("brand_id") @db.Uuid
+  createdById      String?      @map("created_by_id") @db.Uuid
+  name             String
+  slug             String
+  description      String?
+  prizeName        String       @map("prize_name")
+  prizeDescription String?      @map("prize_description")
+  prizeImageUrl    String?      @map("prize_image_url")
+  status           RaffleStatus @default(DRAFT)
+  startsAt         DateTime?    @map("starts_at")
+  closesAt         DateTime?    @map("closes_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  brand        Brand?       @relation(fields: [brandId], references: [id])
+  createdBy    User?        @relation("RaffleCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, status])
+  @@index([brandId])
+  @@map("raffles")
+}
+
+model Participant {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  displayName    String   @map("display_name")
+  fullName       String?  @map("full_name")
+  phone          String?
+  email          String?
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+  @@map("participants")
+}
