@@ -26,7 +26,7 @@ describe('RaffleEntriesService', () => {
   });
 
   it('allows only the defined status transitions', async () => {
-    const prisma = { raffleEntry: { findFirst: jest.fn().mockResolvedValue({ id: 'e1', status: 'PENDING' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
+    const prisma = { raffle: { findFirst: jest.fn().mockResolvedValue({ status: 'OPEN' }) }, raffleEntry: { findFirst: jest.fn().mockResolvedValue({ id: 'e1', status: 'PENDING' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
     const service = new RaffleEntriesService(prisma as never);
     await service.update('org-a', 'r1', 'e1', { status: 'VALIDATED' });
     await expect(service.update('org-a', 'r1', 'e1', { status: 'CANCELLED' })).rejects.toBeInstanceOf(BadRequestException);

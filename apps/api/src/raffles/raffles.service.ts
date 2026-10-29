@@ -25,10 +25,16 @@ export class RafflesService {
   async update(user: AuthenticatedUser, id: string, dto: UpdateRaffleDto) {
     const raffle = await this.findOne(user.organizationId, id);
     if (!['DRAFT', 'OPEN'].includes(raffle.status)) throw new BadRequestException('Only DRAFT and OPEN raffles can be modified');
-    if (dto.status && !['DRAFT', 'OPEN', 'CANCELLED'].includes(dto.status)) throw new BadRequestException('Invalid status transition for this iteration');
+    if (dto.status && !this.isAllowedTransition(raffle.status, dto.status)) throw new BadRequestException('Invalid raffle status transition');
     if (dto.brandId) await this.requireBrand(user.organizationId, dto.brandId);
     const data = { ...dto, startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined, closesAt: dto.closesAt ? new Date(dto.closesAt) : undefined };
     return this.prisma.raffle.update({ where: { id: raffle.id }, data });
+  }
+
+  private isAllowedTransition(current: string, next: string) {
+    if (current === 'DRAFT') return ['DRAFT', 'OPEN', 'CANCELLED'].includes(next);
+    if (current === 'OPEN') return ['OPEN', 'CANCELLED'].includes(next);
+    return false;
   }
 
   private async requireBrand(organizationId: string, id: string) {

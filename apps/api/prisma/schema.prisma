@@ -52,6 +52,18 @@ enum RaffleEntryStatus {
   CANCELLED
 }
 
+enum DrawSessionStatus {
+  READY
+  DRAWING
+  COMPLETED
+}
+
+enum AuditEventType {
+  RAFFLE_CLOSED
+  DRAW_STARTED
+  DRAW_COMPLETED
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -65,6 +77,9 @@ model Organization {
   raffles      Raffle[]
   participants Participant[]
   entries      RaffleEntry[]
+  drawSessions DrawSession[]
+  drawResults  DrawResult[]
+  auditEvents  AuditEvent[]
 
   @@map("organizations")
 }
@@ -128,6 +143,9 @@ model Raffle {
   brand        Brand?        @relation(fields: [brandId], references: [id])
   createdBy    User?         @relation("RaffleCreatedBy", fields: [createdById], references: [id])
   entries      RaffleEntry[]
+  drawSession  DrawSession?  @relation("RaffleDrawSession")
+  drawResult   DrawResult?   @relation("RaffleDrawResult")
+  auditEvents  AuditEvent[]  @relation("RaffleAuditEvents")
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -171,10 +189,70 @@ model RaffleEntry {
   organization Organization @relation(fields: [organizationId], references: [id])
   raffle       Raffle       @relation(fields: [raffleId], references: [id])
   participant  Participant  @relation(fields: [participantId], references: [id])
+  drawResults  DrawResult[] @relation("EntryWinner")
 
   @@unique([raffleId, ticketNumber])
   @@index([organizationId, raffleId])
   @@index([organizationId, participantId])
   @@index([raffleId, status])
   @@map("raffle_entries")
+}
+
+model DrawSession {
+  id                      String            @id @default(uuid()) @db.Uuid
+  organizationId          String            @map("organization_id") @db.Uuid
+  raffleId                String            @unique @map("raffle_id") @db.Uuid
+  participantSnapshot     Json              @map("participant_snapshot")
+  participantSnapshotHash String            @map("participant_snapshot_hash")
+  seedCommitment          String            @map("seed_commitment")
+  secretSeed              String            @map("secret_seed")
+  algorithmVersion        String            @map("algorithm_version")
+  status                  DrawSessionStatus @default(READY)
+  startedAt               DateTime?         @map("started_at")
+  completedAt             DateTime?         @map("completed_at")
+  createdAt               DateTime          @default(now()) @map("created_at")
+  updatedAt               DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  raffle       Raffle       @relation("RaffleDrawSession", fields: [raffleId], references: [id])
+  result       DrawResult?
+
+  @@unique([organizationId, raffleId])
+  @@map("draw_sessions")
+}
+
+model DrawResult {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  drawSessionId  String   @map("draw_session_id") @db.Uuid
+  raffleId       String   @map("raffle_id") @db.Uuid
+  winnerEntryId  String   @map("winner_entry_id") @db.Uuid
+  winnerIndex    Int      @map("winner_index")
+  resultHash     String   @map("result_hash")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  drawSession  DrawSession  @relation(fields: [drawSessionId], references: [id])
+  raffle       Raffle       @relation("RaffleDrawResult", fields: [raffleId], references: [id])
+  winnerEntry  RaffleEntry  @relation("EntryWinner", fields: [winnerEntryId], references: [id])
+
+  @@unique([drawSessionId])
+  @@unique([raffleId])
+  @@index([organizationId, raffleId])
+  @@map("draw_results")
+}
+
+model AuditEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  raffleId       String         @map("raffle_id") @db.Uuid
+  type           AuditEventType
+  payload        Json
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  raffle       Raffle       @relation("RaffleAuditEvents", fields: [raffleId], references: [id])
+
+  @@index([organizationId, raffleId, createdAt])
+  @@map("audit_events")
 }

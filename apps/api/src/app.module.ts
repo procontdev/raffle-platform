@@ -8,6 +8,7 @@ import { BrandsModule } from './brands/brands.module.js';
 import { RafflesModule } from './raffles/raffles.module.js';
 import { ParticipantsModule } from './participants/participants.module.js';
 import { RaffleEntriesModule } from './raffle-entries/raffle-entries.module.js';
+import { DrawModule } from './draw/draw.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RaffleEntriesModule } from './raffle-entries/raffle-entries.module.js';
     RafflesModule,
     ParticipantsModule,
     RaffleEntriesModule,
+    DrawModule,
   ],
 })
 export class AppModule {}

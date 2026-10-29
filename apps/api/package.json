@@ -21,6 +21,7 @@
     "@nestjs/platform-express": "11.2.8",
     "@nestjs/jwt": "11.0.1",
     "@nestjs/swagger": "11.2.0",
+    "@raffle/raffle-engine": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "class-transformer": "0.5.1",

@@ -34,6 +34,9 @@ importers:
       '@prisma/client':
         specifier: 7.10.1
         version: 7.10.1(prisma@7.10.1(@types/node@24.10.0)(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.3))(typescript@5.9.3)
+      '@raffle/raffle-engine':
+        specifier: workspace:*
+        version: link:../../packages/raffle-engine
       argon2:
         specifier: 0.44.0
         version: 0.44.0
@@ -147,7 +150,20 @@ importers:
 
   packages/contracts: {}
 
-  packages/raffle-engine: {}
+  packages/raffle-engine:
+    devDependencies:
+      '@types/jest':
+        specifier: 30.0.0
+        version: 30.0.0
+      jest:
+        specifier: 30.2.0
+        version: 30.2.0(@types/node@24.10.0)
+      ts-jest:
+        specifier: 29.4.5
+        version: 29.4.5(@babel/core@7.29.7)(@jest/transform@30.2.0)(@jest/types@30.5.1)(babel-jest@30.2.0(@babel/core@7.29.7))(jest-util@30.5.1)(jest@30.2.0(@types/node@24.10.0))(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
   packages/shared: {}
 
