@@ -68,6 +68,9 @@ export class RaffleEntriesService {
   }
 
   async update(organizationId: string, raffleId: string, entryId: string, dto: UpdateEntryDto) {
+    const raffle = await this.prisma.raffle.findFirst({ where: { id: raffleId, organizationId }, select: { status: true } });
+    if (!raffle) throw new NotFoundException('Raffle not found');
+    if (['READY', 'DRAWING', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes(raffle.status)) throw new BadRequestException('Entries cannot be modified after raffle close');
     const entry = await this.findOne(organizationId, raffleId, entryId);
     if (!allowedTransitions[entry.status].includes(dto.status)) throw new BadRequestException(`Invalid entry status transition: ${entry.status} -> ${dto.status}`);
     const updated = await this.prisma.raffleEntry.updateMany({ where: { id: entryId, raffleId, organizationId }, data: { status: dto.status } });
@@ -82,6 +85,6 @@ export class RaffleEntriesService {
   }
 
   assertRaffleCanReceiveEntries(status: string) {
-    if (status === 'CANCELLED' || status === 'COMPLETED') throw new BadRequestException('Raffle cannot receive entries in its current status');
+    if (['READY', 'DRAWING', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes(status)) throw new BadRequestException('Raffle cannot receive entries in its current status');
   }
 }
