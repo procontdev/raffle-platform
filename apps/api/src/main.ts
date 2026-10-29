@@ -17,6 +17,7 @@ async function bootstrap() {
     .setTitle('Raffle Platform API')
     .setDescription('API for verifiable multi-brand raffles')
     .setVersion('0.0.1')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

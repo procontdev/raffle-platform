@@ -5,4 +5,5 @@ module.exports = {
   transform: { '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: true }] },
   extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
+  moduleNameMapper: { '^(\\.{1,2}/.*)\\.js$': '$1' },
 };
