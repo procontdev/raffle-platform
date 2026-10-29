@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
 import { BrandsModule } from './brands/brands.module.js';
 import { RafflesModule } from './raffles/raffles.module.js';
+import { ParticipantsModule } from './participants/participants.module.js';
+import { RaffleEntriesModule } from './raffle-entries/raffle-entries.module.js';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { RafflesModule } from './raffles/raffles.module.js';
     OrganizationModule,
     BrandsModule,
     RafflesModule,
+    ParticipantsModule,
+    RaffleEntriesModule,
   ],
 })
 export class AppModule {}
