@@ -37,6 +37,21 @@ enum RaffleStatus {
   CANCELLED
 }
 
+enum RaffleEntrySource {
+  YAPE
+  YOUTUBE_MEMBER
+  MANUAL
+  COURTESY
+  IMPORT
+}
+
+enum RaffleEntryStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+  CANCELLED
+}
+
 model Organization {
   id        String             @id @default(uuid()) @db.Uuid
   name      String
@@ -49,6 +64,7 @@ model Organization {
   users        User[]
   raffles      Raffle[]
   participants Participant[]
+  entries      RaffleEntry[]
 
   @@map("organizations")
 }
@@ -91,25 +107,27 @@ model User {
 }
 
 model Raffle {
-  id               String       @id @default(uuid()) @db.Uuid
-  organizationId   String       @map("organization_id") @db.Uuid
-  brandId          String?      @map("brand_id") @db.Uuid
-  createdById      String?      @map("created_by_id") @db.Uuid
-  name             String
-  slug             String
-  description      String?
-  prizeName        String       @map("prize_name")
-  prizeDescription String?      @map("prize_description")
-  prizeImageUrl    String?      @map("prize_image_url")
-  status           RaffleStatus @default(DRAFT)
-  startsAt         DateTime?    @map("starts_at")
-  closesAt         DateTime?    @map("closes_at")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  brandId            String?      @map("brand_id") @db.Uuid
+  createdById        String?      @map("created_by_id") @db.Uuid
+  name               String
+  slug               String
+  description        String?
+  prizeName          String       @map("prize_name")
+  prizeDescription   String?      @map("prize_description")
+  prizeImageUrl      String?      @map("prize_image_url")
+  status             RaffleStatus @default(DRAFT)
+  startsAt           DateTime?    @map("starts_at")
+  closesAt           DateTime?    @map("closes_at")
+  nextTicketSequence Int          @default(0) @map("next_ticket_sequence")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  brand        Brand?       @relation(fields: [brandId], references: [id])
-  createdBy    User?        @relation("RaffleCreatedBy", fields: [createdById], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  brand        Brand?        @relation(fields: [brandId], references: [id])
+  createdBy    User?         @relation("RaffleCreatedBy", fields: [createdById], references: [id])
+  entries      RaffleEntry[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, status])
@@ -128,10 +146,35 @@ model Participant {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  entries      RaffleEntry[]
 
   @@index([organizationId])
   @@index([organizationId, phone])
   @@index([organizationId, email])
   @@map("participants")
+}
+
+model RaffleEntry {
+  id               String            @id @default(uuid()) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  raffleId         String            @map("raffle_id") @db.Uuid
+  participantId    String            @map("participant_id") @db.Uuid
+  ticketNumber     String            @map("ticket_number")
+  source           RaffleEntrySource
+  paymentReference String?           @map("payment_reference")
+  paymentAmount    Decimal?          @map("payment_amount") @db.Decimal(12, 2)
+  status           RaffleEntryStatus @default(PENDING)
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  raffle       Raffle       @relation(fields: [raffleId], references: [id])
+  participant  Participant  @relation(fields: [participantId], references: [id])
+
+  @@unique([raffleId, ticketNumber])
+  @@index([organizationId, raffleId])
+  @@index([organizationId, participantId])
+  @@index([raffleId, status])
+  @@map("raffle_entries")
 }
