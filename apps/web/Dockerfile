@@ -19,7 +19,6 @@ RUN corepack enable
 RUN addgroup -S raffle && adduser -S raffle -G raffle
 COPY --from=build --chown=raffle:raffle /app/node_modules ./node_modules
 COPY --from=build --chown=raffle:raffle /app/apps/web/.next ./apps/web/.next
-COPY --from=build --chown=raffle:raffle /app/apps/web/public ./apps/web/public
 COPY --from=build --chown=raffle:raffle /app/apps/web/package.json ./apps/web/package.json
 USER raffle
 EXPOSE 3002
