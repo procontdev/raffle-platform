@@ -94,3 +94,17 @@ html,body { max-width:100%; overflow-x:hidden; }
 .range-setting { gap:10px; margin-top:18px; }
 .range-setting input[type="range"] { padding:0; accent-color:#64e6b5; }
 .range-value { color:#fff; font-weight:700; }
+.live-participants-button { margin:10px 0 14px; }
+.official-standby { margin-top:12px; }
+.participants-overlay { position:fixed; inset:0; z-index:80; display:grid; place-items:center; padding:22px; background:rgba(3,7,13,.78); backdrop-filter:blur(7px); }
+.participants-dialog { width:min(760px, 100%); max-height:min(78vh, 720px); overflow:auto; padding:24px; border:1px solid #38506a; border-radius:18px; background:#101827; box-shadow:0 24px 80px rgba(0,0,0,.5); }
+.participants-dialog-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.participants-dialog-header h2 { margin:0; color:#fff; }
+.icon-button { border:1px solid #40506a; border-radius:9px; padding:5px 10px; color:#dce5f7; background:#182337; font-size:22px; line-height:1; cursor:pointer; }
+.participants-dialog-list { display:grid; gap:8px; margin-top:18px; }
+.live-participant-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px 15px; border:1px solid #2d3b55; border-radius:10px; background:#0b101a; }
+.live-participant-row div { display:grid; gap:4px; min-width:0; }
+.live-participant-row strong { color:#fff; overflow-wrap:anywhere; }
+.live-participant-row small { color:#8fa2c5; overflow-wrap:anywhere; }
+.live-participant-row > span { flex:0 0 auto; color:#64e6b5; font-weight:700; }
+@media (max-width:600px) { .participants-overlay { padding:12px; }.participants-dialog { padding:18px; }.live-participant-row { align-items:flex-start; flex-direction:column; gap:8px; } }

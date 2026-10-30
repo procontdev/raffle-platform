@@ -14,6 +14,7 @@ type LiveState = 'WAITING' | 'READY' | 'COUNTDOWN' | 'DRAWING' | 'WINNER' | 'DEM
 type LiveTemplate = 'classic' | 'spotlight';
 type LiveSnapshot = { liveState: LiveState; winner: PublicRaffle['draw']; participantCount: number; ticketCount: number; validatedTicketCount: number; validatedCandidates: RehearsalCandidates['candidates'] };
 type OfficialDrawResponse = { winnerTicketNumber: string; algorithmVersion: string; resultHash: string };
+type LiveParticipantRow = { displayName: string; ticketCount: number; tickets: string[] };
 
 export default function LivePage() {
   return <LivePageErrorBoundary><LivePageContent /></LivePageErrorBoundary>;
@@ -43,10 +44,26 @@ function OfficialDrawButton({ canOperate, starting, error, onStart, className = 
   return <div className="official-draw-action"><button className={className} onClick={onStart} disabled={starting}>{starting ? 'Iniciando sorteo...' : 'Iniciar sorteo oficial'}</button>{error && <p className="alert error">{error}</p>}</div>;
 }
 
+function summarizeParticipants(candidates: RehearsalCandidates['candidates']): LiveParticipantRow[] {
+  const rows = new Map<string, LiveParticipantRow>();
+  candidates.forEach((candidate) => {
+    const current = rows.get(candidate.displayName) ?? { displayName: candidate.displayName, ticketCount: 0, tickets: [] };
+    current.ticketCount += 1; current.tickets.push(candidate.ticketNumber); rows.set(candidate.displayName, current);
+  });
+  return [...rows.values()];
+}
+
 function Marquee({ candidates, speedSeconds = 24 }: { candidates: RehearsalCandidates['candidates']; speedSeconds?: number }) {
+  const ticketCounts = new Map<string, number>();
+  candidates.forEach((candidate) => ticketCounts.set(candidate.displayName, (ticketCounts.get(candidate.displayName) ?? 0) + 1));
   return candidates.length > 0
-    ? <div className="demo-marquee" aria-label="Participantes elegibles para el ensayo"><div className="demo-marquee-track" style={{ animationDuration: `${speedSeconds}s` }}>{[...candidates, ...candidates].map((candidate, index) => <span className="demo-candidate" key={`${candidate.ticketNumber}-${index}`}><strong>{candidate.displayName}</strong><code>{candidate.ticketNumber}</code></span>)}</div></div>
+    ? <div className="demo-marquee" aria-label="Participantes elegibles"><div className="demo-marquee-track" style={{ animationDuration: `${speedSeconds}s` }}>{[...candidates, ...candidates].map((candidate, index) => <span className="demo-candidate" key={`${candidate.ticketNumber}-${index}`}><strong>{candidate.displayName} ({ticketCounts.get(candidate.displayName) ?? 1})</strong><code>{candidate.ticketNumber}</code></span>)}</div></div>
     : <p className="live-state">No hay tickets disponibles para el ensayo.</p>;
+}
+
+function ParticipantsPanel({ rows, open, demo, onClose }: { rows: LiveParticipantRow[]; open: boolean; demo: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return <div className="participants-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><section className="participants-dialog" role="dialog" aria-modal="true" aria-labelledby="live-participants-title"><div className="participants-dialog-header"><div><p className="eyebrow">{demo ? 'Modo ensayo' : 'Transparencia pública'}</p><h2 id="live-participants-title">Participantes y tickets</h2></div><button className="icon-button" aria-label="Cerrar participantes" onClick={onClose}>×</button></div><p className="muted-text">{rows.length} participantes · {rows.reduce((total, row) => total + row.ticketCount, 0)} tickets visibles</p>{rows.length === 0 ? <p className="live-state">No hay tickets disponibles.</p> : <div className="participants-dialog-list">{rows.map((row) => <div className="live-participant-row" key={row.displayName}><div><strong>{row.displayName}</strong><small>{row.tickets.join(' · ')}</small></div><span>{row.ticketCount} {row.ticketCount === 1 ? 'ticket' : 'tickets'}</span></div>)}</div>}</section></div>;
 }
 
 function CountdownOverlay({ value }: { value: number }) {
@@ -89,9 +106,11 @@ type DisplayProps = {
   officialDrawStarting: boolean;
   officialDrawError: string;
   startOfficialDraw: () => void;
+  participantRows: LiveParticipantRow[];
+  openParticipants: () => void;
 };
 
-function SpotlightTemplate({ raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount, canOperate, officialDrawStarting, officialDrawError, startOfficialDraw }: DisplayProps) {
+function SpotlightTemplate({ raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount, canOperate, officialDrawStarting, officialDrawError, startOfficialDraw, openParticipants }: DisplayProps) {
   const stageLabels: Partial<Record<LiveState, string>> = { WAITING: 'EN ESPERA', READY: 'LISTO PARA EMPEZAR', COUNTDOWN: 'CUENTA REGRESIVA', DRAWING: 'SELECCIONANDO', WINNER: 'RESULTADO' };
   const stage = stageLabels[state] ?? state;
   return <div className="spotlight-template">
@@ -112,6 +131,7 @@ function SpotlightTemplate({ raffle, demo, state, candidates, demoStarted, start
       <div><span>Tickets validados</span><strong>{demo ? candidates.length : validatedTicketCount}</strong></div>
     </section>
     {connection && <div className="connection-state">{connection}</div>}
+    <button className="secondary-button live-participants-button" onClick={openParticipants}>Ver participantes</button>
     {demo && state === 'WAITING' && <section className="spotlight-rehearsal"><div><p className="eyebrow">CANDIDATOS VISIBLES</p><h2>Todos tienen una oportunidad</h2></div><Marquee candidates={candidates} speedSeconds={raffle?.marqueeSpeedSeconds} /><button className="primary-button spotlight-start" onClick={startDemo} disabled={demoStarted || candidates.length === 0}>Iniciar ensayo</button></section>}
     {!demo && state === 'WAITING' && <div className="spotlight-state">Preparando la transmisión</div>}
     {!demo && (state === 'WAITING' || state === 'READY') && <section className="spotlight-rehearsal official-standby"><div><p className="eyebrow">CANDIDATOS VISIBLES</p><h2>{state === 'READY' ? 'Todos tienen una oportunidad' : 'Preparando la transmision'}</h2></div><Marquee candidates={candidates} speedSeconds={raffle?.marqueeSpeedSeconds} /></section>}
@@ -122,7 +142,7 @@ function SpotlightTemplate({ raffle, demo, state, candidates, demoStarted, start
   </div>;
 }
 
-function ClassicTemplate({ raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount, canOperate, officialDrawStarting, officialDrawError, startOfficialDraw }: DisplayProps) {
+function ClassicTemplate({ raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount, canOperate, officialDrawStarting, officialDrawError, startOfficialDraw, openParticipants }: DisplayProps) {
   return <>{demo && <DemoBanner />}<p className="eyebrow">{raffle?.brand?.name ?? 'Raffle Platform'} - transmision en vivo</p><h1>{raffle?.name ?? 'Cargando sorteo...'}</h1><p className="live-prize">{raffle?.prizeName}</p>{connection && <div className="connection-state">{connection}</div>}{demo && state === 'WAITING' && <><Marquee candidates={candidates} speedSeconds={raffle?.marqueeSpeedSeconds} /><button className="primary-button demo-start" onClick={startDemo} disabled={demoStarted || candidates.length === 0}>Iniciar ensayo</button></>}{!demo && state === 'WAITING' && <div className="live-state">Preparando la transmision</div>}{!demo && state === 'READY' && <><div className="live-state">Todo listo - {raffle?.tickets ?? 0} tickets</div><OfficialDrawButton canOperate={canOperate} starting={officialDrawStarting} error={officialDrawError} onStart={startOfficialDraw} /></>}{state === 'COUNTDOWN' && <div className="live-state countdown">3... 2... 1...</div>}{state === 'DRAWING' && <div className="live-state drawing">{demo ? 'Seleccionando ticket de ensayo...' : 'Seleccionando ganador...'}</div>}{state === 'WINNER' && shownWinner && <div className="winner-card"><span>{demo ? 'Ganador de ensayo' : 'Ganador'}</span><strong>{shownWinner.displayName}</strong><code>{shownWinner.winnerTicketNumber}</code><small>{shownWinner.prizeName}</small>{!demo && winner?.drawId && <a href={`/verify/${winner.drawId}`}>Verificar resultado</a>}</div>}<footer>{raffle?.participants ?? 0} participantes - {raffle?.tickets ?? 0} oportunidades {demo && '- MODO ENSAYO - RESULTADO NO VALIDO'}</footer></>;
 }
 
@@ -145,6 +165,7 @@ function LivePageContent() {
   const [operatorToken, setOperatorToken] = useState<string | null>(null);
   const [officialDrawStarting, setOfficialDrawStarting] = useState(false);
   const [officialDrawError, setOfficialDrawError] = useState('');
+  const [participantsOpen, setParticipantsOpen] = useState(false);
   const demoTimers = useRef<number[]>([]);
   const audioContext = useRef<AudioContext | null>(null);
 
@@ -191,6 +212,7 @@ function LivePageContent() {
   }, [demo, slug]);
 
   const raffleId = raffle?.id;
+  const participantRows = summarizeParticipants(candidates);
 
   useEffect(() => {
     if (!raffleId || demo || loading || loadError) return;
@@ -250,10 +272,10 @@ function LivePageContent() {
   const template = resolveLiveTemplate(params.get('template'), theme.liveTemplate);
   const shownWinner = demo ? (demoWinner ? { displayName: demoWinner.displayName, winnerTicketNumber: demoWinner.ticketNumber, prizeName: demoWinner.prizeName } : null) : winner ? { displayName: winner.displayName, winnerTicketNumber: winner.winnerTicketNumber, prizeName: raffle?.prizeName ?? '' } : null;
   const standbyMarquee = !demo && template === 'classic' && (state === 'WAITING' || state === 'READY') ? <Marquee candidates={candidates} speedSeconds={raffle?.marqueeSpeedSeconds} /> : null;
-  const frame = (content: ReactNode) => <main className={`live-page live-template-${template}`} data-obs={obs ? 'true' : undefined} style={{ '--accent': accent } as CSSProperties}><div className="live-card">{standbyMarquee}{content}</div>{state === 'COUNTDOWN' && <CountdownOverlay value={countdownValue} />}{state === 'WINNER' && shownWinner && <ConfettiBurst />}</main>;
+  const frame = (content: ReactNode) => <main className={`live-page live-template-${template}`} data-obs={obs ? 'true' : undefined} style={{ '--accent': accent } as CSSProperties}><div className="live-card">{template === 'classic' && !loading && state !== 'ERROR' && state !== 'DEMO_EMPTY' && <button className="secondary-button live-participants-button" onClick={() => setParticipantsOpen(true)}>Ver participantes</button>}{standbyMarquee}{content}</div><ParticipantsPanel rows={participantRows} open={participantsOpen} demo={demo} onClose={() => setParticipantsOpen(false)} />{state === 'COUNTDOWN' && <CountdownOverlay value={countdownValue} />}{state === 'WINNER' && shownWinner && <ConfettiBurst />}</main>;
   if (loading) return frame(<><p className="eyebrow">{demo ? 'MODO ENSAYO' : 'Raffle Platform'}</p><h1>Cargando sorteo...</h1></>);
   if (loadError || state === 'ERROR') return frame(<><div className="demo-banner">{demo && <><strong>MODO ENSAYO</strong><span>RESULTADO NO VALIDO</span></>}</div><h1>No se pudo cargar el sorteo.</h1><p className="muted-text">Revisa la conexion e intenta nuevamente.</p></>);
   if (state === 'DEMO_EMPTY') return frame(<><DemoBanner /><h1>No hay tickets disponibles para el ensayo.</h1><p className="muted-text">Agrega al menos un ticket al raffle actual para probar la pantalla LIVE.</p></>);
-  const props = { raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount: demo ? candidates.length : validatedTicketCount, marqueeSpeedSeconds: raffle?.marqueeSpeedSeconds, canOperate: Boolean(operatorToken), officialDrawStarting, officialDrawError, startOfficialDraw };
+  const props = { raffle, demo, state, candidates, demoStarted, startDemo, connection, shownWinner, winner, validatedTicketCount: demo ? candidates.length : validatedTicketCount, marqueeSpeedSeconds: raffle?.marqueeSpeedSeconds, canOperate: Boolean(operatorToken), officialDrawStarting, officialDrawError, startOfficialDraw, participantRows, openParticipants: () => setParticipantsOpen(true) };
   return frame(template === 'spotlight' ? <SpotlightTemplate {...props} /> : <ClassicTemplate {...props} />);
 }
