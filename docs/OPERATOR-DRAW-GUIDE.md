@@ -9,3 +9,5 @@
 7. Comparte el enlace `/verify/<drawId>` mostrado en la escena para que cualquier persona pueda recalcular y verificar el resultado.
 
 El modo ensayo no crea `DrawSession` ni `DrawResult`. El sorteo real usa `algorithmVersion v1`, snapshot comprometido y rejection sampling determinista. La confidencialidad pre-sorteo del seed depende de la seguridad de la base de datos y del operador.
+
+Para un despliegue DEV, comprueba `/ready` antes de operar. La pantalla LIVE recupera su estado por HTTP después de refrescos y reconexiones; `COUNTDOWN` y `DRAWING` no se persisten segundo a segundo. Si se reinicia la API con un sorteo READY, el snapshot y commitment siguen disponibles; si ya está COMPLETED, el ganador y la verificación pública permanecen.

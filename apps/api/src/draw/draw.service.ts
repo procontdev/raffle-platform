@@ -13,6 +13,7 @@ import {
   verifyDraw,
   type SnapshotEntry,
 } from '@raffle/raffle-engine';
+import { logEvent } from '../common/structured-log.js';
 
 @Injectable()
 export class DrawService {
@@ -34,6 +35,7 @@ export class DrawService {
       if (updated.count !== 1) throw new ConflictException('Raffle changed while closing');
       const session = await tx.drawSession.create({ data: { organizationId, raffleId, participantSnapshot: snapshot as unknown as Prisma.InputJsonValue, participantSnapshotHash, seedCommitment, secretSeed, algorithmVersion: RAFFLE_ENGINE_VERSION, status: 'READY' } });
       await tx.auditEvent.create({ data: { organizationId, raffleId, type: 'RAFFLE_CLOSED', payload: { algorithmVersion: RAFFLE_ENGINE_VERSION, participantSnapshotHash, validatedEntryCount: snapshot.length } as Prisma.InputJsonValue } });
+      logEvent('RAFFLE_CLOSED', { organizationId, raffleId });
       return this.publicSession(session);
     });
   }
@@ -56,6 +58,7 @@ export class DrawService {
       const started = await tx.drawSession.updateMany({ where: { id: session.id, organizationId, status: 'READY' }, data: { status: 'DRAWING', startedAt: new Date() } });
       if (started.count !== 1) throw new ConflictException('Draw is already in progress');
       await tx.auditEvent.create({ data: { organizationId, raffleId, type: 'DRAW_STARTED', payload: { algorithmVersion: session.algorithmVersion } as Prisma.InputJsonValue } });
+      logEvent('DRAW_STARTED', { organizationId, raffleId });
       const resultHash = calculateResultHash({ algorithmVersion: session.algorithmVersion, raffleId, participantSnapshotHash: session.participantSnapshotHash, secretSeed: session.secretSeed });
       const winnerIndex = calculateWinnerIndex(resultHash, snapshot.length);
       const winner = selectWinner(snapshot, winnerIndex);
@@ -65,6 +68,7 @@ export class DrawService {
       await tx.drawSession.update({ where: { id: session.id }, data: { status: 'COMPLETED', completedAt: new Date() } });
       await tx.raffle.updateMany({ where: { id: raffleId, organizationId, status: 'READY' }, data: { status: 'COMPLETED' } });
       await tx.auditEvent.create({ data: { organizationId, raffleId, type: 'DRAW_COMPLETED', payload: { algorithmVersion: session.algorithmVersion, winnerIndex, resultHash } as Prisma.InputJsonValue } });
+      logEvent('DRAW_COMPLETED', { organizationId, raffleId, drawId: result.id });
       return { ...result, algorithmVersion: session.algorithmVersion, revealedSeed: session.secretSeed, winnerTicketNumber: winnerEntry.ticketNumber };
     });
   }

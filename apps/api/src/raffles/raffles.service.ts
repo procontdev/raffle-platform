@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthenticatedUser } from '../auth/auth.types.js';
 import { CreateRaffleDto } from './dto/create-raffle.dto.js';
 import { UpdateRaffleDto } from './dto/update-raffle.dto.js';
+import { logEvent } from '../common/structured-log.js';
 
 @Injectable()
 export class RafflesService {
@@ -11,7 +12,9 @@ export class RafflesService {
   async create(user: AuthenticatedUser, dto: CreateRaffleDto) {
     if (dto.startsAt && dto.closesAt && new Date(dto.startsAt) >= new Date(dto.closesAt)) throw new BadRequestException('startsAt must be before closesAt');
     if (dto.brandId) await this.requireBrand(user.organizationId, dto.brandId);
-    return this.prisma.raffle.create({ data: { ...dto, organizationId: user.organizationId, createdById: user.id, startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined, closesAt: dto.closesAt ? new Date(dto.closesAt) : undefined }, });
+    const raffle = await this.prisma.raffle.create({ data: { ...dto, organizationId: user.organizationId, createdById: user.id, startsAt: dto.startsAt ? new Date(dto.startsAt) : undefined, closesAt: dto.closesAt ? new Date(dto.closesAt) : undefined }, });
+    logEvent('RAFFLE_CREATED', { organizationId: user.organizationId, raffleId: raffle.id, userId: user.id });
+    return raffle;
   }
 
   list(organizationId: string) { return this.prisma.raffle.findMany({ where: { organizationId }, orderBy: { createdAt: 'desc' } }); }

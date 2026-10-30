@@ -3,6 +3,7 @@ import { RaffleEntrySource } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateEntriesDto } from './dto/create-entries.dto.js';
 import { RaffleEntriesService } from './raffle-entries.service.js';
+import { logEvent } from '../common/structured-log.js';
 
 type CsvRow = Record<string, string>;
 
@@ -32,6 +33,7 @@ export class CsvImportService {
         result.errors.push({ row: rowNumber, message: error instanceof Error ? error.message : 'Invalid row' });
       }
     }
+    logEvent('CSV_IMPORT_COMPLETED', { organizationId, raffleId, totalRows: result.totalRows, importedRows: result.importedRows, rejectedRows: result.rejectedRows, entriesCreated: result.entriesCreated });
     return result;
   }
 
@@ -76,8 +78,8 @@ export class CsvImportService {
       return participant.id;
     }
     const existing = row.email
-      ? await this.prisma.participant.findFirst({ where: { organizationId, email: row.email } })
-      : await this.prisma.participant.findFirst({ where: { organizationId, phone: row.phone } });
+      ? await this.prisma.participant.findFirst({ where: { organizationId, email: row.email, archivedAt: null } })
+      : await this.prisma.participant.findFirst({ where: { organizationId, phone: row.phone, archivedAt: null } });
     if (existing) return existing.id;
     const participant = await this.prisma.participant.create({ data: { organizationId, displayName: row.displayName, fullName: row.fullName, phone: row.phone, email: row.email } });
     return participant.id;

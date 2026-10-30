@@ -3,9 +3,11 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateEntriesDto } from './dto/create-entries.dto.js';
 import { ListEntriesDto } from './dto/list-entries.dto.js';
 import { UpdateEntryDto } from './dto/update-entry.dto.js';
+import { BulkUpdateEntryStatusDto } from './dto/bulk-update-entry-status.dto.js';
+import { RaffleEntryStatus } from '../generated/prisma/client.js';
 
 const allowedTransitions: Record<string, string[]> = {
-  PENDING: ['VALIDATED', 'REJECTED'],
+  PENDING: ['VALIDATED', 'REJECTED', 'CANCELLED'],
   VALIDATED: ['CANCELLED'],
   REJECTED: ['CANCELLED'],
   CANCELLED: [],
@@ -24,7 +26,7 @@ export class RaffleEntriesService {
       if (!raffle) throw new NotFoundException('Raffle not found');
       this.assertRaffleCanReceiveEntries(raffle.status);
 
-      const participant = await tx.participant.findFirst({ where: { id: dto.participantId, organizationId }, select: { id: true } });
+      const participant = await tx.participant.findFirst({ where: { id: dto.participantId, organizationId, archivedAt: null }, select: { id: true } });
       if (!participant) throw new NotFoundException('Participant not found');
 
       const reserved = await tx.raffle.updateMany({
@@ -76,6 +78,30 @@ export class RaffleEntriesService {
     const updated = await this.prisma.raffleEntry.updateMany({ where: { id: entryId, raffleId, organizationId }, data: { status: dto.status } });
     if (updated.count !== 1) throw new NotFoundException('Raffle entry not found');
     return this.findOne(organizationId, raffleId, entryId);
+  }
+
+  async bulkUpdateStatus(organizationId: string, raffleId: string, dto: BulkUpdateEntryStatusDto) {
+    const ids = [...new Set(dto.entryIds)];
+    return this.prisma.$transaction(async (tx) => {
+      const raffle = await tx.raffle.findFirst({ where: { id: raffleId, organizationId }, select: { status: true } });
+      if (!raffle) throw new NotFoundException('Raffle not found');
+      if (['READY', 'DRAWING', 'COMPLETED', 'CANCELLED', 'CLOSED'].includes(raffle.status)) throw new BadRequestException('Entries cannot be modified after raffle close');
+      const entries = await tx.raffleEntry.findMany({ where: { id: { in: ids }, raffleId, organizationId }, select: { id: true, status: true } });
+      const byId = new Map(entries.map((entry) => [entry.id, entry]));
+      const errors = ids.flatMap((entryId) => {
+        const entry = byId.get(entryId);
+        if (!entry) return [{ entryId, message: 'Raffle entry not found' }];
+        if (!allowedTransitions[entry.status].includes(dto.status)) return [{ entryId, message: `Invalid entry status transition: ${entry.status} -> ${dto.status}` }];
+        return [];
+      });
+      const validEntries = entries.filter((entry) => allowedTransitions[entry.status].includes(dto.status));
+      let updated = 0;
+      for (const entry of validEntries) {
+        const result = await tx.raffleEntry.updateMany({ where: { id: entry.id, raffleId, organizationId, status: entry.status }, data: { status: dto.status } });
+        updated += result.count;
+      }
+      return { requested: ids.length, updated, skipped: errors.length, status: dto.status as RaffleEntryStatus, errors };
+    });
   }
 
   async requireRaffle(organizationId: string, raffleId: string) {

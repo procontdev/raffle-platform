@@ -29,6 +29,20 @@ describe('RaffleEntriesService', () => {
     const prisma = { raffle: { findFirst: jest.fn().mockResolvedValue({ status: 'OPEN' }) }, raffleEntry: { findFirst: jest.fn().mockResolvedValue({ id: 'e1', status: 'PENDING' }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
     const service = new RaffleEntriesService(prisma as never);
     await service.update('org-a', 'r1', 'e1', { status: 'VALIDATED' });
-    await expect(service.update('org-a', 'r1', 'e1', { status: 'CANCELLED' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.update('org-a', 'r1', 'e1', { status: 'PENDING' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('bulk updates valid transitions and reports invalid or missing entries', async () => {
+    const tx = {
+      raffle: { findFirst: jest.fn().mockResolvedValue({ status: 'OPEN' }) },
+      raffleEntry: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'e1', status: 'PENDING' }, { id: 'e2', status: 'VALIDATED' }]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const prisma = { $transaction: jest.fn().mockImplementation(async (callback) => callback(tx)) };
+    const result = await new RaffleEntriesService(prisma as never).bulkUpdateStatus('org-a', 'r1', { entryIds: ['e1', 'e2', 'missing'], status: 'VALIDATED' });
+    expect(result).toEqual(expect.objectContaining({ requested: 3, updated: 1, skipped: 2, status: 'VALIDATED' }));
+    expect(tx.raffleEntry.updateMany).toHaveBeenCalledWith({ where: { id: 'e1', raffleId: 'r1', organizationId: 'org-a', status: 'PENDING' }, data: { status: 'VALIDATED' } });
   });
 });

@@ -1,7 +1,10 @@
 import { token } from './auth';
+import { handleSessionExpired, isAuthenticatedSessionFailure } from './session-expired.mjs';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? API_URL;
 export class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
+export class SessionExpiredError extends ApiError { constructor() { super(401, 'Session expired'); } }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
@@ -10,7 +13,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   const response = await fetch(`${API_URL}/api/v1${path}`, { ...options, headers, cache: 'no-store' });
   const body = await response.json().catch(() => null);
-  if (response.status === 401 && typeof window !== 'undefined') { localStorage.removeItem('raffle_access_token'); localStorage.removeItem('raffle_user'); }
+  if (typeof window !== 'undefined' && isAuthenticatedSessionFailure(response.status, accessToken)) { handleSessionExpired(window.localStorage, window.location); throw new SessionExpiredError(); }
   if (!response.ok) throw new ApiError(response.status, body?.message ?? `Request failed (${response.status})`);
   return body as T;
 }

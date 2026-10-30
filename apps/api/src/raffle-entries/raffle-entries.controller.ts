@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../auth/auth.types.js';
 import { CreateEntriesDto } from './dto/create-entries.dto.js';
 import { ListEntriesDto } from './dto/list-entries.dto.js';
 import { UpdateEntryDto } from './dto/update-entry.dto.js';
+import { BulkUpdateEntryStatusDto } from './dto/bulk-update-entry-status.dto.js';
 import { CsvImportService } from './csv-import.service.js';
 import { RaffleEntriesService } from './raffle-entries.service.js';
 
@@ -30,6 +31,11 @@ export class RaffleEntriesController {
   @Get('entries/:entryId')
   findOne(@CurrentUser() user: AuthenticatedUser, @Param('raffleId', ParseUUIDPipe) raffleId: string, @Param('entryId', ParseUUIDPipe) entryId: string) {
     return this.entries.findOne(user.organizationId, raffleId, entryId);
+  }
+
+  @Patch('entries/bulk-status')
+  bulkUpdateStatus(@CurrentUser() user: AuthenticatedUser, @Param('raffleId', ParseUUIDPipe) raffleId: string, @Body() dto: BulkUpdateEntryStatusDto) {
+    return this.entries.bulkUpdateStatus(user.organizationId, raffleId, dto);
   }
 
   @Patch('entries/:entryId')

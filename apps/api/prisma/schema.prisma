@@ -65,12 +65,13 @@ enum AuditEventType {
 }
 
 model Organization {
-  id        String             @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String             @unique
-  status    OrganizationStatus @default(ACTIVE)
-  createdAt DateTime           @default(now()) @map("created_at")
-  updatedAt DateTime           @updatedAt @map("updated_at")
+  id                  String             @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String             @unique
+  status              OrganizationStatus @default(ACTIVE)
+  marqueeSpeedSeconds Int                @default(24) @map("marquee_speed_seconds")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
 
   brands       Brand[]
   users        User[]
@@ -154,15 +155,16 @@ model Raffle {
 }
 
 model Participant {
-  id             String   @id @default(uuid()) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  displayName    String   @map("display_name")
-  fullName       String?  @map("full_name")
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  displayName    String    @map("display_name")
+  fullName       String?   @map("full_name")
   phone          String?
   email          String?
   metadata       Json?
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   organization Organization  @relation(fields: [organizationId], references: [id])
   entries      RaffleEntry[]
@@ -170,6 +172,7 @@ model Participant {
   @@index([organizationId])
   @@index([organizationId, phone])
   @@index([organizationId, email])
+  @@index([organizationId, archivedAt])
   @@map("participants")
 }
 

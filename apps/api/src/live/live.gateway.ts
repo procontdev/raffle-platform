@@ -1,18 +1,22 @@
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveService } from './live.service.js';
+import { logEvent } from '../common/structured-log.js';
 
 type LiveState = 'LIVE_RESET' | 'LIVE_READY' | 'LIVE_COUNTDOWN' | 'LIVE_DRAWING' | 'LIVE_WINNER';
 
-@WebSocketGateway({ namespace: '/live', cors: { origin: '*' } })
-export class LiveGateway {
+@WebSocketGateway({ namespace: '/live', cors: { origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3002').split(',').map((origin) => origin.trim()), credentials: true }, transports: ['websocket', 'polling'] })
+export class LiveGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(LiveGateway.name);
 
   constructor(private readonly jwt: JwtService, private readonly prisma: PrismaService, private readonly live: LiveService) {}
+
+  handleConnection(client: Socket) { logEvent('LIVE_CLIENT_CONNECTED', { userId: client.id }); }
+  handleDisconnect(client: Socket) { logEvent('LIVE_CLIENT_DISCONNECTED', { userId: client.id }); }
 
   @SubscribeMessage('joinRaffle')
   async join(@ConnectedSocket() client: Socket, @MessageBody() body: { raffleId?: string }) {
@@ -22,6 +26,7 @@ export class LiveGateway {
     const room = this.room(raffle.id);
     await client.join(room);
     client.emit('LIVE_READY', { raffleId: raffle.id, status: raffle.status });
+    logEvent('LIVE_ROOM_JOINED', { raffleId: raffle.id });
     return { ok: true, room };
   }
 
@@ -35,6 +40,7 @@ export class LiveGateway {
     let payload: Record<string, unknown> = { raffleId: raffle.id };
     if (body.state === 'LIVE_WINNER') payload = await this.live.winnerPayload(user.organizationId, raffle.id);
     this.server.to(this.room(raffle.id)).emit(body.state, payload);
+    logEvent('LIVE_EVENT_EMITTED', { raffleId: raffle.id });
     return { ok: true };
   }
 

@@ -24,10 +24,16 @@ MVP foundation for a verifiable, multi-organization and multi-brand raffle platf
 Or follow `docs/DEVELOPMENT.md` and use the PowerShell helper scripts.
 
 ## URLs
-- Web: http://localhost:3000
+- Web: http://localhost:3002
 - API: http://localhost:3001
 - Swagger: http://localhost:3001/api/docs
 - Health: http://localhost:3001/health
+
+## DEV deployment
+
+The API and web application have production multi-stage Dockerfiles at `apps/api/Dockerfile` and `apps/web/Dockerfile`. Use `prisma migrate deploy` with `MIGRATION_DATABASE_URL` before starting the API; never use `prisma migrate dev` on the VPS. See [docs/DEPLOY-EASYPANEL-DEV.md](docs/DEPLOY-EASYPANEL-DEV.md), [docs/DEV-E2E-CHECKLIST.md](docs/DEV-E2E-CHECKLIST.md) and [docs/DEV-BACKUP-RECOVERY.md](docs/DEV-BACKUP-RECOVERY.md).
+
+Runtime-only variables are `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `API_PORT`, `API_HOST`, `CORS_ORIGIN` and `NODE_ENV`. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` are public build-time web variables and must not contain secrets. Health endpoints are `/health`, `/ready` and `/livez`.
 
 ## Important
 This repository intentionally keeps the raffle engine isolated from FAM-specific concepts. FAM is the pilot organization, not a hardcoded tenant.
