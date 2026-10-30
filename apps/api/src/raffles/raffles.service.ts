@@ -17,10 +17,10 @@ export class RafflesService {
     return raffle;
   }
 
-  list(organizationId: string) { return this.prisma.raffle.findMany({ where: { organizationId }, orderBy: { createdAt: 'desc' } }); }
+  list(organizationId: string) { return this.prisma.raffle.findMany({ where: { organizationId }, include: { brand: true }, orderBy: { createdAt: 'desc' } }); }
 
   async findOne(organizationId: string, id: string) {
-    const raffle = await this.prisma.raffle.findFirst({ where: { id, organizationId } });
+    const raffle = await this.prisma.raffle.findFirst({ where: { id, organizationId }, include: { brand: true } });
     if (!raffle) throw new NotFoundException('Raffle not found');
     return raffle;
   }
