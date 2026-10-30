@@ -18,6 +18,7 @@ RUN addgroup -S raffle && adduser -S raffle -G raffle
 COPY --from=build --chown=raffle:raffle /app/node_modules ./node_modules
 COPY --from=build --chown=raffle:raffle /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build --chown=raffle:raffle /app/packages ./packages
+COPY --from=build --chown=raffle:raffle /app/apps/api/src/generated ./apps/api/src/generated
 COPY --from=build --chown=raffle:raffle /app/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=raffle:raffle /app/apps/api/package.json ./apps/api/package.json
 COPY --from=build --chown=raffle:raffle /app/apps/api/prisma ./apps/api/prisma
